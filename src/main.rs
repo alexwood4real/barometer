@@ -1,4 +1,4 @@
-/***************************************************
+/**************************************************************
  * SPDX-License-Identifier: MIT OR Apache-2.0
  * Barometer
  *
@@ -6,10 +6,9 @@
  * main.rs
  *
  * Description:
- * This example was pulled directly from the
- * embassy-rs repo on github
- * https://github.com/embassy-rs/embassy/blob/main/examples/rp235x/src/bin/blinky_wifi.rs
- ***************************************************/
+ * Main loop to collect data from BME 280 sensor
+ * Blinking LED ensures Wi-Fi connection and data collection
+ **************************************************************/
 
 #![no_std]
 #![no_main]

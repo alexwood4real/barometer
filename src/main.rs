@@ -27,6 +27,10 @@ use embassy_time::{Duration, Timer};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
+/* Constants */
+const WIFI_NETWORK: &str = env!("WIFI_SSID");
+const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
+
 /* Handlers */
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
@@ -56,6 +60,13 @@ async fn heartbeat(
         control.gpio_set(0, false).await;
         Timer::after(delay).await;
         }
+}
+
+#[embassy_executor::task]
+async fn net_task(
+    mut runner: embassy_net::Runner<'static, cyw43::NetDriver<'static>>
+) -> ! {
+    runner.run().await
 }
 
 #[embassy_executor::main]
@@ -90,17 +101,47 @@ async fn main(spawner: Spawner) {
 
     /* Create CYW43 driver */
     let state: &mut cyw43::State = STATE.init(cyw43::State::new());
-    let (_net_device, mut control, runner) = cyw43::new(state, pwr, spi, fw, nvram).await;
+    let (net_device, mut control, runner) = cyw43::new(state, pwr, spi, fw, nvram).await;
 
     /* turn on background driver */
     spawner.spawn(unwrap!(cyw43_task(runner)));
 
-    /* turn on heartbeat */
+    /* set up the control */
     control.init(clm).await;
     control
         .set_power_management(cyw43::PowerManagementMode::PowerSave)
         .await;
 
+    /* configure network stack */
+    let net_config = embassy_net::Config::dhcpv4( Default::default() );
+    let seed: u64 = 0x0123_4567_89ab_cdef;
+
+    static RESOURCES: StaticCell<embassy_net::StackResources<3>> = StaticCell::new();
+    let (stack, net_runner) = embassy_net::new(
+        net_device,
+        net_config,
+        RESOURCES.init(embassy_net::StackResources::new()),
+        seed
+    );
+
+    spawner.spawn(unwrap!(net_task(net_runner)));
+
+    /* try to join the network until success */
+    loop
+        {
+        match control
+            .join(WIFI_NETWORK, cyw43::JoinOptions::new(WIFI_PASSWORD.as_bytes()))
+            .await
+            {
+            Ok(_) => break,
+            Err(err) => info!("Failed to join network, status = {}", err)
+            }
+        }
+
+    /* Wi-Fi has been connected, waiting for DHCP */
+    stack.wait_config_up().await;
+
+    /* turn on heartbeat */
     spawner.spawn(unwrap!(heartbeat(control)));
 
     /* infinite main loop */

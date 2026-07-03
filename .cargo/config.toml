@@ -43,3 +43,5 @@ runner = "/Users/ogbrownskin/.pico-sdk/picotool/2.2.0-a4/picotool/picotool load 
 
 [env]
 DEFMT_LOG = "debug"
+WIFI_SSID = "HC1081Petunia"
+WIFI_PASSWORD = "Welcome2FisionX1081"

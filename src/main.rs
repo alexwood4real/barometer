@@ -14,15 +14,17 @@
 #![no_main]
 
 /* crates */
+use bme280_rs::{AsyncBme280, Configuration, Oversampling, SensorMode};
 use cyw43::aligned_bytes;
 use cyw43_pio::{PioSpi, RM2_CLOCK_DIVIDER};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_rp::gpio::{Level, Output};
-use embassy_rp::peripherals::{DMA_CH0, PIO0};
+use embassy_rp::i2c::{Config as I2cConfig, I2c};
+use embassy_rp::peripherals::{DMA_CH0, PIO0, I2C0};
 use embassy_rp::pio::{InterruptHandler, Pio};
 use embassy_rp::{bind_interrupts, dma};
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Timer, Delay};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -30,10 +32,11 @@ use {defmt_rtt as _, panic_probe as _};
 const WIFI_NETWORK: &str = env!("WIFI_SSID");
 const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
 
-/* Handlers */
+/* Interrupt Handlers */
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
     DMA_IRQ_0 => dma::InterruptHandler<DMA_CH0>;
+    I2C0_IRQ => embassy_rp::i2c::InterruptHandler<I2C0>;
 });
 
 /* Async functions */
@@ -143,12 +146,52 @@ async fn main(spawner: Spawner) {
     /* turn on heartbeat */
     spawner.spawn(unwrap!(heartbeat(control)));
 
+    /* Configure BME 280 sensor */
+    let i2c: I2c<'_, I2C0, embassy_rp::i2c::Async> = I2c::new_async(p.I2C0, p.PIN_5, p.PIN_4, Irqs, I2cConfig::default());
+    let delay: Delay = Delay;
+    let mut bme280: AsyncBme280<I2c<'_, I2C0, embassy_rp::i2c::Async>, Delay> = AsyncBme280::new(i2c, delay);
+
+    unwrap!(bme280.init().await);
+
+    unwrap!(bme280.set_sampling_configuration(
+        Configuration::default()
+            .with_temperature_oversampling(Oversampling::Oversample1)
+            .with_pressure_oversampling(Oversampling::Oversample1)
+            .with_humidity_oversampling(Oversampling::Oversample1)
+            .with_sensor_mode(SensorMode::Normal)
+        ).await);
+
+
     /* infinite main loop */
     loop 
         {
         info!("Data collection start");
 
-        /* Data colletion, will be done with #8 */
+        /* temp */
+        if let Some(temperature) = unwrap!(bme280.read_temperature().await) {
+            info!("Temperature: {} C", temperature);
+        }
+        else {
+            info!("Temperature disabled");
+        }
+
+        /* pres */
+        if let Some(pressure) = unwrap!(bme280.read_pressure().await) {
+            info!("Pressure: {} Pa", pressure);
+        }
+        else {
+            info!("Pressure disabled");
+        }
+
+        /* pres */
+        if let Some(humidity) = unwrap!(bme280.read_humidity().await) {
+            info!("Humidity: {} Pa", humidity);
+        }
+        else {
+            info!("Humidity disabled");
+        }
+
+        /* wait 1 sec before going again */
         Timer::after(Duration::from_secs(1)).await;
 
         info!("Data collection end");

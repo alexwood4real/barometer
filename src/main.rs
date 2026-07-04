@@ -25,6 +25,7 @@ use embassy_rp::peripherals::{DMA_CH0, PIO0, I2C0};
 use embassy_rp::pio::{InterruptHandler, Pio};
 use embassy_rp::{bind_interrupts, dma};
 use embassy_time::{Duration, Timer, Delay};
+use log::info;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -37,6 +38,7 @@ bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
     DMA_IRQ_0 => dma::InterruptHandler<DMA_CH0>;
     I2C0_IRQ => embassy_rp::i2c::InterruptHandler<I2C0>;
+    USBCTRL_IRQ =>embassy_rp::usb::InterruptHandler<embassy_rp::peripherals::USB>;
 });
 
 /* Async functions */
@@ -71,12 +73,23 @@ async fn net_task(
     runner.run().await
 }
 
+#[embassy_executor::task]
+async fn logger_task(
+    driver: embassy_rp::usb::Driver<'static, embassy_rp::peripherals::USB>
+) {
+    embassy_usb_logger::run!(1024, log::LevelFilter::Info, driver);
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("Barometer start");
 
     /* Init RP2350 peripherals */
     let p: embassy_rp::Peripherals = embassy_rp::init(Default::default());
+
+    /* Initialize Logger */
+    let driver = embassy_rp::usb::Driver::new(p.USB, Irqs);
+    spawner.spawn(unwrap!(logger_task(driver)));
 
     /* Load Wi-Fi firmware */
     let fw: &cyw43::Aligned<cyw43::A4, [u8]> = aligned_bytes!("cyw43-firmware/43439A0.bin");
@@ -136,7 +149,7 @@ async fn main(spawner: Spawner) {
             .await
             {
             Ok(_) => break,
-            Err(err) => info!("Failed to join network, status = {}", err)
+            Err(err) => info!("Failed to join network, status = {:?}", err)
             }
         }
 

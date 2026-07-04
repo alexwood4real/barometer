@@ -198,16 +198,16 @@ async fn main(spawner: Spawner) {
 
         /* pres */
         if let Some(humidity) = unwrap!(bme280.read_humidity().await) {
-            info!("Humidity: {} Pa", humidity);
+            info!("Humidity: {} %", humidity);
         }
         else {
             info!("Humidity disabled");
         }
 
+        info!("Data collection end");
+        
         /* wait 1 sec before going again */
         Timer::after(Duration::from_secs(1)).await;
-
-        info!("Data collection end");
         }
 }
 

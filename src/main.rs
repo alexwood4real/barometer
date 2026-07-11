@@ -19,6 +19,7 @@ use cyw43::aligned_bytes;
 use cyw43_pio::{PioSpi, RM2_CLOCK_DIVIDER};
 use defmt::*;
 use embassy_executor::Spawner;
+//use embassy_rp::adc::Sample;
 use embassy_rp::gpio::{Level, Output};
 use embassy_rp::i2c::{Config as I2cConfig, I2c};
 use embassy_rp::peripherals::{DMA_CH0, PIO0, I2C0};
@@ -27,7 +28,12 @@ use embassy_rp::{bind_interrupts, dma};
 use embassy_time::{Duration, Timer, Delay};
 use log::info;
 use static_cell::StaticCell;
+use crate::calc::psychometric::{SensorData};
+
 use {defmt_rtt as _, panic_probe as _};
+
+/* mods */
+mod calc;
 
 /* Constants */
 const WIFI_NETWORK: &str = env!("WIFI_SSID");
@@ -160,9 +166,9 @@ async fn main(spawner: Spawner) {
     spawner.spawn(unwrap!(heartbeat(control)));
 
     /* Configure BME 280 sensor */
-    let i2c: I2c<'_, I2C0, embassy_rp::i2c::Async> = I2c::new_async(p.I2C0, p.PIN_5, p.PIN_4, Irqs, I2cConfig::default());
-    let delay: Delay = Delay;
-    let mut bme280: AsyncBme280<I2c<'_, I2C0, embassy_rp::i2c::Async>, Delay> = AsyncBme280::new(i2c, delay);
+    let i2c  = I2c::new_async(p.I2C0, p.PIN_5, p.PIN_4, Irqs, I2cConfig::default());
+    let delay = Delay;
+    let mut bme280= AsyncBme280::new(i2c, delay);
 
     unwrap!(bme280.init().await);
 
@@ -178,33 +184,30 @@ async fn main(spawner: Spawner) {
     /* infinite main loop */
     loop 
         {
-        info!("Data collection start");
+        /* takes all data from a single sample instead of three different ones */
+        let measurements = unwrap!(bme280.read_sample().await);
 
-        /* temp */
-        if let Some(temperature) = unwrap!(bme280.read_temperature().await) {
-            info!("Temperature: {} C", temperature);
-        }
-        else {
-            info!("Temperature disabled");
-        }
+        let sensor_data = SensorData {
+            temperature: measurements.temperature,
+            pressure: measurements.pressure,
+            humidity: measurements.humidity
+            };
 
-        /* pres */
-        if let Some(pressure) = unwrap!(bme280.read_pressure().await) {
-            info!("Pressure: {} Pa", pressure);
+        if let Some(weather_data) = sensor_data.calculate() {
+            // next, print this out to see if it is working before doing bucks
+            // also, start a branch for this
+            println!("temp: {}\n
+                      press: {}\n
+                      hum: {}\n
+                      sat: {}\n\n", 
+                      weather_data.temperature,
+                      weather_data.pressure,
+                      weather_data.humidity,
+                      weather_data.saturation_vapor_pressure);
+        } else {
+            info!("Uh oh");
         }
-        else {
-            info!("Pressure disabled");
-        }
-
-        /* pres */
-        if let Some(humidity) = unwrap!(bme280.read_humidity().await) {
-            info!("Humidity: {} %", humidity);
-        }
-        else {
-            info!("Humidity disabled");
-        }
-
-        info!("Data collection end");
+        
         
         /* wait 1 sec before going again */
         Timer::after(Duration::from_secs(1)).await;

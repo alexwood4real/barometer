@@ -35,6 +35,7 @@ embedded-storage = { version = "0.3" }
 static_cell = "2.1"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
 log = "0.4"
+libm = "0.2"
 embedded-sdmmc = "0.7.0"
 
 [target.'cfg( target_arch = "arm" )'.dependencies]

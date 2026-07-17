@@ -22,14 +22,30 @@ pub struct PsychometricData {
     pub temperature: f32,  /* °C */
     pub pressure: f32,     /* Pascals */
     pub humidity: f32,     /* % water vapor in air  */
-    pub saturation_vapor_pressure: f32
-                       /* Hectopascals (hPa) */
+    pub saturation_vapor_pressure: f32,
+                           /* Hectopascals (hPa) */
+    pub vapor_pressure: f32,
+                           /* Vapor Pressure (hPa) */
+    pub dew_point: f32,    /* Dew Point °C */
+    pub vapor_pressure_deficit: f32,
+                           /* Vapor Pressure Deficit (hpa) */
+    pub absolute_humidity: f32,
+                           /* Absolute Humidity (g/m^3) */
+    pub mixing_ratio: f32, /* g water / kg dry air */
+    pub specific_humidity: f32,
+                           /* kg/kg */
     }
 
 pub mod calculator {
 use crate::calc::psychometric::SensorData;
 use crate::calc::psychometric::PsychometricData;
+use crate::calc::absolute_humidity::calculate_absolute_humidity;
+use crate::calc::dew_point::calculate_dew_point;
+use crate::calc::mixing_ratio::calculate_mixing_ratio;
 use crate::calc::saturation_vapor_pressure::calculate_saturation_vapor_pressure;
+use crate::calc::vapor_pressure_deficit::calculate_vapor_pressure_deficit;
+use crate::calc::specific_humidity:: calculate_specific_humidity;
+use crate::calc::vapor_pressure::calculate_vapor_pressure;
 
     /* calculate data from initial sensor readings */
     impl SensorData {
@@ -42,12 +58,24 @@ use crate::calc::saturation_vapor_pressure::calculate_saturation_vapor_pressure;
 
             /* collect data */
             let svp = calculate_saturation_vapor_pressure(temp);
+            let vp = calculate_vapor_pressure(svp, hum);
+            let dp = calculate_dew_point(vp);
+            let vpd = calculate_vapor_pressure_deficit(svp, vp);
+            let ah = calculate_absolute_humidity(temp, vp);
+            let mr= calculate_mixing_ratio(pres, vp);
+            let sh = calculate_specific_humidity(mr);
 
             Some(PsychometricData {
                 temperature: temp,
                 pressure: pres,
                 humidity: hum,
-                saturation_vapor_pressure: svp
+                saturation_vapor_pressure: svp,
+                vapor_pressure: vp,
+                dew_point: dp,
+                vapor_pressure_deficit: vpd,
+                absolute_humidity: ah,
+                mixing_ratio: mr,
+                specific_humidity: sh,
                 })
             }
         }

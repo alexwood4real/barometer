@@ -194,20 +194,20 @@ async fn main(spawner: Spawner) {
             };
 
         if let Some(weather_data) = sensor_data.calculate() {
-            // next, print this out to see if it is working before doing bucks
-            // also, start a branch for this
-            println!("temp: {}\n
-                      press: {}\n
-                      hum: {}\n
-                      sat: {}\n\n", 
-                      weather_data.temperature,
-                      weather_data.pressure,
-                      weather_data.humidity,
-                      weather_data.saturation_vapor_pressure);
+            /* DEBUG: display values */
+            info!("temp: {}", weather_data.temperature);
+            info!("press: {}", weather_data.pressure);
+            info!("hum: {}", weather_data.humidity);
+            info!("svp: {}", weather_data.saturation_vapor_pressure);
+            info!("vp: {}", weather_data.vapor_pressure);
+            info!("dp: {}", weather_data.dew_point);
+            info!("vpd: {}", weather_data.vapor_pressure_deficit);
+            info!("ah: {}", weather_data.absolute_humidity);
+            info!("mr: {}", weather_data.mixing_ratio);
+            info!("sh: {}", weather_data.specific_humidity);
         } else {
-            info!("Uh oh");
+            info!("Failed to read sample from sensor");
         }
-        
         
         /* wait 1 sec before going again */
         Timer::after(Duration::from_secs(1)).await;

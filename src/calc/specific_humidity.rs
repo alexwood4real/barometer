@@ -1,0 +1,23 @@
+/**************************************************************
+ * SPDX-License-Identifier: MIT OR Apache-2.0
+ * Barometer
+ *
+ * FILE:
+ * specific_humidity.rs
+ *
+ * Description:
+ * The Specific Humidity is the ratio of the mass of the vapor
+ * in a sample, to the mass of the moist air in the sample of air
+ * 
+ * Formula:
+ * 
+ *        /   ms   \
+ * sh =  |----------|
+ *        \ 1 + ms /
+ * 
+ * Source: https://vortex.plymouth.edu/~stmiller/stmiller_content/Publications/AtmosRH_Equations_Rev.pdf
+ **************************************************************/
+
+ pub fn calculate_specific_humidity(mr: f32) -> f32 {
+    mr / ( 1.0 + mr )
+ }

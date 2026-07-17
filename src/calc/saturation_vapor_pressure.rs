@@ -23,7 +23,7 @@
  **************************************************************/
  use libm::expf;
 
- pub fn calculate_saturation_vapor_pressure(temp: f32 ) -> f32 {
+ pub fn calculate_saturation_vapor_pressure(temp: f32) -> f32 {
     let n = 17.502 * temp;
     let d = 240.97 + temp;
 

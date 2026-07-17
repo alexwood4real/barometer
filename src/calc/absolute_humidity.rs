@@ -22,5 +22,6 @@
  **************************************************************/
 
  pub fn calculate_absolute_humidity(temp: f32, vp: f32) -> f32 {
-    ( vp * 2.1674 ) / ( 273.15 + temp )
+   /* x100 to adjust hPa -> Pascals */
+    ( vp * 2.1674 ) / ( 273.15 + temp ) * 100.0
  }

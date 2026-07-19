@@ -38,6 +38,7 @@ pub struct PsychometricData {
     pub air_density: f32,  /* Air Density (kg / m^3) */
     pub enthalpy: f32,     /* Enthalpy (kJ / kg dry air) */
     pub wet_bulb: f32,     /* Wet Bulb (°C) */
+    pub heat_index: f32,   /* Heat Index (°F) */
     }
 
 pub mod calculator {
@@ -48,6 +49,7 @@ use crate::calc::air_denisty::calculate_air_density;
 use crate::calc::altitude::calculate_altitude;
 use crate::calc::dew_point::calculate_dew_point;
 use crate::calc::enthalpy::calculate_enthalpy;
+use crate::calc::heat_index::calculate_heat_index;
 use crate::calc::mixing_ratio::calculate_mixing_ratio;
 use crate::calc::saturation_vapor_pressure::calculate_saturation_vapor_pressure;
 use crate::calc::vapor_pressure_deficit::calculate_vapor_pressure_deficit;
@@ -76,6 +78,7 @@ use crate::calc::wet_bulb::calculate_wet_bulb;
             let ad = calculate_air_density(pres, temp, vp);
             let ent = calculate_enthalpy(temp, mr);
             let wb = calculate_wet_bulb(hum, temp);
+            let hi = calculate_heat_index(temp, hum);
 
             Some(PsychometricData {
                 temperature: temp,
@@ -92,6 +95,7 @@ use crate::calc::wet_bulb::calculate_wet_bulb;
                 air_density: ad,
                 enthalpy: ent,
                 wet_bulb: wb,
+                heat_index: hi,
                 })
             }
         }

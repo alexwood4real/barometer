@@ -5,6 +5,7 @@ pub mod air_denisty;
 pub mod altitude;
 pub mod dew_point;
 pub mod enthalpy;
+pub mod heat_index;
 pub mod mixing_ratio;
 pub mod saturation_vapor_pressure;
 pub mod specific_humidity;

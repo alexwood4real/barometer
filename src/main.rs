@@ -198,6 +198,7 @@ async fn main(spawner: Spawner) {
             info!("temp: {}", weather_data.temperature);
             info!("press: {}", weather_data.pressure);
             info!("hum: {}", weather_data.humidity);
+            info!("alt: {}", weather_data.altitude);
             info!("svp: {}", weather_data.saturation_vapor_pressure);
             info!("vp: {}", weather_data.vapor_pressure);
             info!("dp: {}", weather_data.dew_point);
@@ -205,6 +206,8 @@ async fn main(spawner: Spawner) {
             info!("ah: {}", weather_data.absolute_humidity);
             info!("mr: {}", weather_data.mixing_ratio);
             info!("sh: {}", weather_data.specific_humidity);
+            info!("ad: {}", weather_data.air_density);
+            info!("ent: {}", weather_data.enthalpy);
         } else {
             info!("Failed to read sample from sensor");
         }

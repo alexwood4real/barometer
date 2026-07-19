@@ -22,6 +22,7 @@ pub struct PsychometricData {
     pub temperature: f32,  /* °C */
     pub pressure: f32,     /* Pascals */
     pub humidity: f32,     /* % water vapor in air  */
+    pub altitude: f32,     /* Altitude (ft) */
     pub saturation_vapor_pressure: f32,
                            /* Hectopascals (hPa) */
     pub vapor_pressure: f32,
@@ -31,16 +32,21 @@ pub struct PsychometricData {
                            /* Vapor Pressure Deficit (hpa) */
     pub absolute_humidity: f32,
                            /* Absolute Humidity (g/m^3) */
-    pub mixing_ratio: f32, /* g water / kg dry air */
+    pub mixing_ratio: f32, /* Mixing Ratio (g water / kg dry air) */
     pub specific_humidity: f32,
-                           /* kg/kg */
+                           /* Specific Humidity (kg / kg) */
+    pub air_density: f32,  /* Air Density (kg / m^3) */
+    pub enthalpy: f32,     /* Enthalpy (kJ / kg dry air) */
     }
 
 pub mod calculator {
 use crate::calc::psychometric::SensorData;
 use crate::calc::psychometric::PsychometricData;
 use crate::calc::absolute_humidity::calculate_absolute_humidity;
+use crate::calc::air_denisty::calculate_air_density;
+use crate::calc::altitude::calculate_altitude;
 use crate::calc::dew_point::calculate_dew_point;
+use crate::calc::enthalpy::calculate_enthalpy;
 use crate::calc::mixing_ratio::calculate_mixing_ratio;
 use crate::calc::saturation_vapor_pressure::calculate_saturation_vapor_pressure;
 use crate::calc::vapor_pressure_deficit::calculate_vapor_pressure_deficit;
@@ -57,6 +63,7 @@ use crate::calc::vapor_pressure::calculate_vapor_pressure;
             let hum = self.humidity?;
 
             /* collect data */
+            let alt = calculate_altitude(pres);
             let svp = calculate_saturation_vapor_pressure(temp);
             let vp = calculate_vapor_pressure(svp, hum);
             let dp = calculate_dew_point(vp);
@@ -64,11 +71,14 @@ use crate::calc::vapor_pressure::calculate_vapor_pressure;
             let ah = calculate_absolute_humidity(temp, vp);
             let mr= calculate_mixing_ratio(pres, vp);
             let sh = calculate_specific_humidity(mr);
+            let ad = calculate_air_density(pres, temp, vp);
+            let ent = calculate_enthalpy(temp, mr);
 
             Some(PsychometricData {
                 temperature: temp,
                 pressure: pres,
                 humidity: hum,
+                altitude: alt,
                 saturation_vapor_pressure: svp,
                 vapor_pressure: vp,
                 dew_point: dp,
@@ -76,6 +86,8 @@ use crate::calc::vapor_pressure::calculate_vapor_pressure;
                 absolute_humidity: ah,
                 mixing_ratio: mr,
                 specific_humidity: sh,
+                air_density: ad,
+                enthalpy: ent,
                 })
             }
         }

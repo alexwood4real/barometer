@@ -1,7 +1,10 @@
 pub mod psychometric;
 
 pub mod absolute_humidity;
+pub mod air_denisty;
+pub mod altitude;
 pub mod dew_point;
+pub mod enthalpy;
 pub mod mixing_ratio;
 pub mod saturation_vapor_pressure;
 pub mod specific_humidity;

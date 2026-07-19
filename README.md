@@ -15,13 +15,18 @@ to measure Temperature, Humidity, and Pressure. This will require soldering whic
 I am using a 2022 Macbook Pro with a M1 Max chip, and I did all my development through VSCode. If you have not installed Rust, I would suggset
 exploring the offical [Rust](https://rust-lang.org) website in order to get started and going through the official [Rustlings](https://github.com/rust-lang/rustlings) course to learn basic syntax.
 
-## Steps Taken
-### TODO
+## How to run
+With a Pico 2 W in bootsel mode, you can run ./load_pico.sh to load the pico, as the name implies, and then run ./display.sh to show the live output in the terminal.
 
-## Current State and Future Plans
-As of now, I am connected to my home Wi-Fi network, I am able to read the temperature, pressure, and humidity and display that in my console, and 
-I have a blinking LED light acting as a heartbeat to ensure everything is working when I am not connected to my computer. This is just the first step. 
-I am able to calcualte much more weather related material from these three variables, as seen in issue [#9](https://github.com/alexwood4real/barometer/issues/9), 
-and I plan on being able to display this information via an iOS app so I can personally see this information when I am away from my home, as seen in issue [#13](https://github.com/alexwood4real/barometer/issues/13).
-The first part was easy, this second part will require more technical work because I will have to figure out where I want to store this information, as seen in issue [#14](https://github.com/alexwood4real/barometer/issues/14)
-and communicating with my application at the same time. In between that work, there are sure to be bugs and things that become broken, but as of now that those are the next steps.
+## Resources
+No tutorials were followed for this. However, a lot of frameworks and examples were used:
+- [Rust by Example](https://doc.rust-lang.org/rust-by-example/index.html)
+- [Official Rust Book](https://doc.rust-lang.org/book/title-page.html)
+- [std](https://doc.rust-lang.org/std/index.html)
+- [libm](https://docs.rs/libm/latest/libm/)
+- [bme280_rs](https://docs.rs/bme280-rs/latest/bme280_rs/)
+- [WiFi](https://github.com/ninjasource/rp-pico2w-examples)
+- [embassy](https://github.com/embassy-rs/embassy) this ones huge
+
+## Future Plans
+I plan on being able to display this information via an iOS app so I can personally see this information when I am away from my home, as seen in issue [#13](https://github.com/alexwood4real/barometer/issues/13). I will compare the calculated values with the ones from the WeatherKit. After that, this will just be used as a base tool for future projects.

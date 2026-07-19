@@ -10,3 +10,4 @@ pub mod saturation_vapor_pressure;
 pub mod specific_humidity;
 pub mod vapor_pressure_deficit;
 pub mod vapor_pressure;
+pub mod wet_bulb;

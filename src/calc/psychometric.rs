@@ -37,6 +37,7 @@ pub struct PsychometricData {
                            /* Specific Humidity (kg / kg) */
     pub air_density: f32,  /* Air Density (kg / m^3) */
     pub enthalpy: f32,     /* Enthalpy (kJ / kg dry air) */
+    pub wet_bulb: f32,     /* Wet Bulb (°C) */
     }
 
 pub mod calculator {
@@ -52,6 +53,7 @@ use crate::calc::saturation_vapor_pressure::calculate_saturation_vapor_pressure;
 use crate::calc::vapor_pressure_deficit::calculate_vapor_pressure_deficit;
 use crate::calc::specific_humidity:: calculate_specific_humidity;
 use crate::calc::vapor_pressure::calculate_vapor_pressure;
+use crate::calc::wet_bulb::calculate_wet_bulb;
 
     /* calculate data from initial sensor readings */
     impl SensorData {
@@ -73,6 +75,7 @@ use crate::calc::vapor_pressure::calculate_vapor_pressure;
             let sh = calculate_specific_humidity(mr);
             let ad = calculate_air_density(pres, temp, vp);
             let ent = calculate_enthalpy(temp, mr);
+            let wb = calculate_wet_bulb(hum, temp);
 
             Some(PsychometricData {
                 temperature: temp,
@@ -88,6 +91,7 @@ use crate::calc::vapor_pressure::calculate_vapor_pressure;
                 specific_humidity: sh,
                 air_density: ad,
                 enthalpy: ent,
+                wet_bulb: wb,
                 })
             }
         }

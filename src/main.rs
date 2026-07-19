@@ -208,6 +208,7 @@ async fn main(spawner: Spawner) {
             info!("sh: {}", weather_data.specific_humidity);
             info!("ad: {}", weather_data.air_density);
             info!("ent: {}", weather_data.enthalpy);
+            info!("wb: {}", weather_data.wet_bulb);
         } else {
             info!("Failed to read sample from sensor");
         }

@@ -13,24 +13,28 @@
 #![no_std]
 #![no_main]
 
-/* crates */
+/* public crates */
 use bme280_rs::{AsyncBme280, Configuration, Oversampling, SensorMode};
-use cyw43::aligned_bytes;
+use cyw43::{NetDriver, Runner as Cyw43Runner, SpiBus, aligned_bytes};
 use cyw43_pio::{PioSpi, RM2_CLOCK_DIVIDER};
 use defmt::*;
 use embassy_executor::Spawner;
-//use embassy_rp::adc::Sample;
-use embassy_rp::gpio::{Level, Output};
-use embassy_rp::i2c::{Config as I2cConfig, I2c};
-use embassy_rp::peripherals::{DMA_CH0, PIO0, I2C0};
-use embassy_rp::pio::{InterruptHandler, Pio};
-use embassy_rp::{bind_interrupts, dma};
-use embassy_time::{Duration, Timer, Delay};
+use embassy_net::Runner as NetRunner;
+use embassy_rp::{
+    bind_interrupts,
+    dma::{Channel, InterruptHandler as DmaHandler},
+    gpio::{Level, Output},
+    i2c::{Config as I2cConfig, I2c, InterruptHandler as I2cHandler},
+    peripherals::{DMA_CH0, I2C0, PIO0, USB},
+    pio::{InterruptHandler as PioHanlder, Pio},
+    usb::{Driver as UsbDriver, InterruptHandler as UsbHandler},
+};
+use embassy_time::{Delay, Duration, Timer};
 use log::info;
 use static_cell::StaticCell;
-use crate::calc::psychometric::{SensorData};
 
-use {defmt_rtt as _, panic_probe as _};
+/* local crates */
+use crate::calc::psychometric::SensorData;
 
 /* mods */
 mod calc;
@@ -38,51 +42,45 @@ mod calc;
 /* Constants */
 const WIFI_NETWORK: &str = env!("WIFI_SSID");
 const WIFI_PASSWORD: &str = env!("WIFI_PASSWORD");
+use {defmt_rtt as _, panic_probe as _};
 
 /* Interrupt Handlers */
 bind_interrupts!(struct Irqs {
-    PIO0_IRQ_0 => InterruptHandler<PIO0>;
-    DMA_IRQ_0 => dma::InterruptHandler<DMA_CH0>;
-    I2C0_IRQ => embassy_rp::i2c::InterruptHandler<I2C0>;
-    USBCTRL_IRQ =>embassy_rp::usb::InterruptHandler<embassy_rp::peripherals::USB>;
+    PIO0_IRQ_0 => PioHanlder<PIO0>;
+    DMA_IRQ_0 => DmaHandler<DMA_CH0>;
+    I2C0_IRQ => I2cHandler<I2C0>;
+    USBCTRL_IRQ =>UsbHandler<USB>;
 });
 
 /* Async functions */
 #[embassy_executor::task]
 async fn cyw43_task(
-    runner: cyw43::Runner<'static, cyw43::SpiBus<Output<'static>, PioSpi<'static, PIO0, 0>>>,
+    runner: Cyw43Runner<'static, SpiBus<Output<'static>, PioSpi<'static, PIO0, 0>>>,
 ) -> ! {
     runner.run().await
 }
 
 #[embassy_executor::task]
-async fn heartbeat(
-    mut control: cyw43::Control<'static>
-) -> ! {
+async fn heartbeat(mut control: cyw43::Control<'static>) -> ! {
     info!("Heartbeat start");
     let delay: Duration = Duration::from_millis(500);
 
-    loop 
-        {
+    loop {
         control.gpio_set(0, true).await;
         Timer::after(delay).await;
 
         control.gpio_set(0, false).await;
         Timer::after(delay).await;
-        }
+    }
 }
 
 #[embassy_executor::task]
-async fn net_task(
-    mut runner: embassy_net::Runner<'static, cyw43::NetDriver<'static>>
-) -> ! {
+async fn net_task(mut runner: NetRunner<'static, NetDriver<'static>>) -> ! {
     runner.run().await
 }
 
 #[embassy_executor::task]
-async fn logger_task(
-    driver: embassy_rp::usb::Driver<'static, embassy_rp::peripherals::USB>
-) {
+async fn logger_task(driver: UsbDriver<'static, USB>) {
     embassy_usb_logger::run!(1024, log::LevelFilter::Info, driver);
 }
 
@@ -94,7 +92,7 @@ async fn main(spawner: Spawner) {
     let p: embassy_rp::Peripherals = embassy_rp::init(Default::default());
 
     /* Initialize Logger */
-    let driver = embassy_rp::usb::Driver::new(p.USB, Irqs);
+    let driver = UsbDriver::new(p.USB, Irqs);
     spawner.spawn(unwrap!(logger_task(driver)));
 
     /* Load Wi-Fi firmware */
@@ -114,7 +112,7 @@ async fn main(spawner: Spawner) {
         cs,
         p.PIN_24,
         p.PIN_29,
-        dma::Channel::new(p.DMA_CH0, Irqs),
+        Channel::new(p.DMA_CH0, Irqs),
     );
 
     /* Allocate state driver */
@@ -134,7 +132,7 @@ async fn main(spawner: Spawner) {
         .await;
 
     /* configure network stack */
-    let net_config = embassy_net::Config::dhcpv4( Default::default() );
+    let net_config = embassy_net::Config::dhcpv4(Default::default());
     let seed: u64 = 0x0123_4567_89ab_cdef;
 
     static RESOURCES: StaticCell<embassy_net::StackResources<3>> = StaticCell::new();
@@ -142,22 +140,24 @@ async fn main(spawner: Spawner) {
         net_device,
         net_config,
         RESOURCES.init(embassy_net::StackResources::new()),
-        seed
+        seed,
     );
 
     spawner.spawn(unwrap!(net_task(net_runner)));
 
     /* try to join the network until success */
-    loop
-        {
+    loop {
         match control
-            .join(WIFI_NETWORK, cyw43::JoinOptions::new(WIFI_PASSWORD.as_bytes()))
+            .join(
+                WIFI_NETWORK,
+                cyw43::JoinOptions::new(WIFI_PASSWORD.as_bytes()),
+            )
             .await
-            {
+        {
             Ok(_) => break,
-            Err(err) => info!("Failed to join network, status = {:?}", err)
-            }
+            Err(err) => info!("Failed to join network, status = {:?}", err),
         }
+    }
 
     /* Wi-Fi has been connected, waiting for DHCP */
     stack.wait_config_up().await;
@@ -166,32 +166,34 @@ async fn main(spawner: Spawner) {
     spawner.spawn(unwrap!(heartbeat(control)));
 
     /* Configure BME 280 sensor */
-    let i2c  = I2c::new_async(p.I2C0, p.PIN_5, p.PIN_4, Irqs, I2cConfig::default());
+    let i2c = I2c::new_async(p.I2C0, p.PIN_5, p.PIN_4, Irqs, I2cConfig::default());
     let delay = Delay;
-    let mut bme280= AsyncBme280::new(i2c, delay);
+    let mut bme280 = AsyncBme280::new(i2c, delay);
 
     unwrap!(bme280.init().await);
 
-    unwrap!(bme280.set_sampling_configuration(
-        Configuration::default()
-            .with_temperature_oversampling(Oversampling::Oversample1)
-            .with_pressure_oversampling(Oversampling::Oversample1)
-            .with_humidity_oversampling(Oversampling::Oversample1)
-            .with_sensor_mode(SensorMode::Normal)
-        ).await);
-
+    unwrap!(
+        bme280
+            .set_sampling_configuration(
+                Configuration::default()
+                    .with_temperature_oversampling(Oversampling::Oversample1)
+                    .with_pressure_oversampling(Oversampling::Oversample1)
+                    .with_humidity_oversampling(Oversampling::Oversample1)
+                    .with_sensor_mode(SensorMode::Normal)
+            )
+            .await
+    );
 
     /* infinite main loop */
-    loop 
-        {
+    loop {
         /* takes all data from a single sample instead of three different ones */
-        let measurements = unwrap!(bme280.read_sample().await);
+        let measurements: bme280_rs::Sample = unwrap!(bme280.read_sample().await);
 
-        let sensor_data = SensorData {
+        let sensor_data: SensorData = SensorData {
             temperature: measurements.temperature,
             pressure: measurements.pressure,
-            humidity: measurements.humidity
-            };
+            humidity: measurements.humidity,
+        };
 
         if let Some(weather_data) = sensor_data.calculate() {
             /* DEBUG: display values */
@@ -213,10 +215,10 @@ async fn main(spawner: Spawner) {
         } else {
             info!("Failed to read sample from sensor");
         }
-        
+
         /* wait 1 sec before going again */
         Timer::after(Duration::from_secs(1)).await;
-        }
+    }
 }
 
 /* Metadata */
